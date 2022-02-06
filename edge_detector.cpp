@@ -3,6 +3,7 @@
 #include <sys/time.h>
 #include <cmath>
 #include <vector>
+#include "mpi.h"
 // #include "stb/stb_image.h"
 #include <string>
 
@@ -20,11 +21,11 @@ extern "C" {
 
 unsigned char *compute_grayscale(unsigned char *img,int width,int height,int channels);
 unsigned char *compute_blur(unsigned char *img, int width,int height,int channels);
-void compute_gradient(unsigned char* img,unsigned char* img_original, int width,int height);
+void compute_gradient(unsigned char* img,unsigned char* img_original, int width,int height,int argc, char **argv);
 // unsigned char* convert_to_gray(unsigned char* img,int width,int height);
 
 
-int main(){
+int main(int argc, char **argv){
     struct timeval tval_before, tval_after, tval_result;
     gettimeofday(&tval_before, NULL);
     int counter;
@@ -48,7 +49,7 @@ int main(){
 
     unsigned char* gradientImage = stbi_load("blur_filter.jpg",&width, &height, &channels, 0);
 
-    compute_gradient(gradientImage,img,width,height);
+    compute_gradient(gradientImage,img,width,height,argc,argv);
     stbi_image_free(img);
     free(grayImage);
     free(gradientImage);
@@ -126,7 +127,7 @@ unsigned char *compute_blur(unsigned char *img, int width,int height,int channel
     return gray_img;
 }
 
-void compute_gradient(unsigned char* img,unsigned char* img_original, int width,int height){
+void compute_gradient(unsigned char* img,unsigned char* img_original, int width,int height,int argc, char **argv){
 
     size_t img_size =width*height;
     size_t gray_img_size=width*height*CHANNEL;
@@ -140,7 +141,12 @@ void compute_gradient(unsigned char* img,unsigned char* img_original, int width,
     int magx,magy,h,w;
     int mag;
     int acc=0;
-    for(int i=0;i<height*width;i++){
+    int rank, size;
+    MPI_Init(&argc,&argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    int total_size=height*width/rank;
+    for(int i=rank*total_size;i<total_size*(rank+1);i++){
         // for(int w=0;w<width;w++){
             h=(int)floor(i/width);
             w=(int)(i-h*width);
@@ -165,63 +171,10 @@ void compute_gradient(unsigned char* img,unsigned char* img_original, int width,
                 *(output_image+acc*3+1)=(uint8_t)*(img_original+acc*3+1);
                 *(output_image+acc*3+2)=(uint8_t)*(img_original+acc*3+2); 
             }
-   
+      }
+      MPI_Finalize();
 
-}
 
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
     stbi_write_jpg("EDGE_IMAGE.jpg",width,height,3,output_image,100);
     stbi_image_free(output_image);  
-
-
 }
-
-// unsigned char* convert_to_gray(unsigned char* img,int width,int height){
-
-//    int gray_channels=CHANNEL==4?2:1;
-//     size_t img_size =width*height*CHANNEL;
-//     size_t gray_img_size=width*height*gray_channels;
-//     unsigned char* gray_img=(unsigned char*)malloc(gray_img_size);
-
-//     for(unsigned char *p=img,*pg=gray_img;p!=img + img_size;p+=CHANNEL,pg+=gray_channels){
-//         *pg=(uint8_t)((*p + *(p+1)+ *(p+2))/3.0);
-//         if(CHANNEL==4){
-//             *(pg+1)=*(p+3);
-//         }
-//     }
-
-//     return gray_img; 
-
-// }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
